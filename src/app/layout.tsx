@@ -30,7 +30,10 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col font-sans">
         {children}
         <footer className="mt-auto border-t border-border py-5 text-center text-sm text-muted">
-          Remotto · Taller Vibe Coding
+          <a href="/admin" className="hover:text-foreground transition-colors">
+            Remotto
+          </a>{" "}
+          · Taller Vibe Coding
         </footer>
       </body>
     </html>
