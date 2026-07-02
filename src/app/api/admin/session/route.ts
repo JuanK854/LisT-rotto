@@ -51,8 +51,11 @@ export async function POST(req: NextRequest) {
       .eq("id", sessionId)
       .maybeSingle();
 
+    // "0000" es el placeholder que deja el marcado manual: nunca usarlo como código real
     const code =
-      existing?.code ?? String(Math.floor(1000 + Math.random() * 9000));
+      existing?.code && existing.code !== "0000"
+        ? existing.code
+        : String(Math.floor(1000 + Math.random() * 9000));
 
     const { error } = await db().from("sessions").upsert({
       id: sessionId,

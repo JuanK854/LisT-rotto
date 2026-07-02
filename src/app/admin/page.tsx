@@ -13,6 +13,24 @@ type Row = {
 };
 
 type SessionInfo = { sessionId: string; open: boolean; code: string | null };
+type SessionSummary = { id: string; open: boolean; present: number };
+
+function formatDate(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("es-MX", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+}
+
+function formatTime(iso: string | null): string {
+  if (!iso) return "";
+  return new Date(iso).toLocaleTimeString("es-MX", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 export default function AdminPage() {
   const [authSession, setAuthSession] = useState<Session | null>(null);
@@ -22,10 +40,12 @@ export default function AdminPage() {
   const [password, setPassword] = useState("");
   const [loggingIn, setLoggingIn] = useState(false);
 
+  const [tab, setTab] = useState<"hoy" | "historial">("hoy");
   const [session, setSession] = useState<SessionInfo | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
-  const [sessions, setSessions] = useState<{ id: string; open: boolean }[]>([]);
-  const [viewSession, setViewSession] = useState<string>("");
+  const [sessions, setSessions] = useState<SessionSummary[]>([]);
+  const [historyDate, setHistoryDate] = useState<string | null>(null);
+  const [historyRows, setHistoryRows] = useState<Row[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -66,7 +86,7 @@ export default function AdminPage() {
     try {
       const [sessRes, listRes, allRes] = await Promise.all([
         api("/api/admin/session"),
-        api(`/api/admin/attendance${viewSession ? `?session=${viewSession}` : ""}`),
+        api("/api/admin/attendance"),
         api("/api/admin/sessions"),
       ]);
       const sess = await sessRes.json();
@@ -83,7 +103,7 @@ export default function AdminPage() {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
     }
-  }, [api, viewSession]);
+  }, [api]);
 
   // Carga inicial + polling cada 10s mientras hay usuario
   useEffect(() => {
@@ -94,6 +114,15 @@ export default function AdminPage() {
     const id = setInterval(refresh, 10_000);
     return () => clearInterval(id);
   }, [authSession, refresh]);
+
+  // Detalle de una fecha del historial
+  useEffect(() => {
+    if (!historyDate) return;
+    api(`/api/admin/attendance?session=${historyDate}`)
+      .then((r) => r.json())
+      .then((data) => setHistoryRows(data.students))
+      .catch((e) => setError(e instanceof Error ? e.message : "Error"));
+  }, [historyDate, api]);
 
   async function login(e: React.FormEvent) {
     e.preventDefault();
@@ -122,17 +151,20 @@ export default function AdminPage() {
     }
   }
 
-  async function toggleStudent(row: Row) {
+  async function toggleStudent(row: Row, sessionId?: string) {
+    const apply = (list: Row[]) =>
+      list.map((r) =>
+        r.id === row.id ? { ...r, present: !r.present, markedBy: "admin" as const } : r
+      );
     // Optimista: actualiza la UI de inmediato y revierte si falla
-    setRows((prev) =>
-      prev.map((r) => (r.id === row.id ? { ...r, present: !r.present, markedBy: "admin" } : r))
-    );
+    if (sessionId) setHistoryRows(apply);
+    else setRows(apply);
     try {
       await api("/api/admin/attendance", {
         method: "POST",
         body: JSON.stringify({
           studentId: row.id,
-          sessionId: viewSession || undefined,
+          sessionId,
           present: !row.present,
         }),
       });
@@ -204,7 +236,6 @@ export default function AdminPage() {
   }
 
   const presentCount = rows.filter((r) => r.present).length;
-  const viewingToday = !viewSession || viewSession === session?.sessionId;
 
   return (
     <main className="flex-1 w-full max-w-3xl mx-auto px-4 py-8">
@@ -229,87 +260,186 @@ export default function AdminPage() {
         </p>
       )}
 
-      <section className="rounded-2xl border border-border bg-card p-6 mb-6 text-center">
-        {session?.open ? (
-          <>
-            <p className="text-muted mb-1">Código del día — proyéctalo en pantalla</p>
-            <p className="text-7xl font-mono font-bold tracking-[0.2em] text-accent">
-              {session.code}
-            </p>
-            <button
-              onClick={() => toggleSession("close")}
-              disabled={busy}
-              className="mt-4 rounded-xl border border-danger/50 text-danger px-5 py-2 hover:bg-danger/10"
-            >
-              Cerrar sesión de hoy
-            </button>
-          </>
-        ) : (
-          <>
-            <p className="text-muted mb-3">
-              No hay sesión abierta hoy ({session?.sessionId})
-            </p>
-            <button
-              onClick={() => toggleSession("open")}
-              disabled={busy}
-              className="rounded-xl bg-accent hover:bg-accent-hover text-white text-lg font-semibold px-6 py-3"
-            >
-              {busy ? "Abriendo…" : "Abrir sesión de hoy"}
-            </button>
-          </>
-        )}
-      </section>
-
-      <section className="flex flex-wrap items-center gap-3 mb-4">
-        <select
-          value={viewSession}
-          onChange={(e) => setViewSession(e.target.value)}
-          className="rounded-xl border border-border bg-card px-3 py-2"
-        >
-          <option value="">Hoy</option>
-          {sessions.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.id}
-            </option>
-          ))}
-        </select>
-        <span className="text-muted">
-          {presentCount} / {rows.length} presentes
-        </span>
+      <nav className="flex gap-2 mb-6">
         <button
-          onClick={exportCsv}
-          className="ml-auto rounded-xl border border-border px-4 py-2 text-sm hover:border-accent"
+          onClick={() => setTab("hoy")}
+          className={`rounded-xl px-5 py-2 font-semibold transition-colors ${
+            tab === "hoy" ? "bg-accent text-white" : "border border-border text-muted hover:text-foreground"
+          }`}
         >
-          Exportar CSV
+          Hoy
         </button>
-      </section>
+        <button
+          onClick={() => {
+            setTab("historial");
+            setHistoryDate(null);
+          }}
+          className={`rounded-xl px-5 py-2 font-semibold transition-colors ${
+            tab === "historial" ? "bg-accent text-white" : "border border-border text-muted hover:text-foreground"
+          }`}
+        >
+          Historial
+        </button>
+      </nav>
 
-      <ul className="space-y-2">
-        {rows.map((r) => (
-          <li key={r.id}>
+      {tab === "hoy" && (
+        <>
+          <section className="rounded-2xl border border-border bg-card p-6 mb-6 text-center">
+            {session?.open ? (
+              <>
+                <p className="text-muted mb-1">Código para marcar asistencia</p>
+                <p className="text-7xl font-mono font-bold tracking-[0.2em] text-accent">
+                  {session.code}
+                </p>
+                <p className="text-muted mt-3 max-w-md mx-auto">
+                  Proyecta o dicta este código: cada alumno lo escribe en la página al
+                  seleccionar su nombre. Así nadie puede marcarse desde su casa.
+                </p>
+                <button
+                  onClick={() => toggleSession("close")}
+                  disabled={busy}
+                  className="mt-4 rounded-xl border border-danger/50 text-danger px-5 py-2 hover:bg-danger/10"
+                >
+                  Terminar pase de lista
+                </button>
+              </>
+            ) : (
+              <>
+                <h2 className="text-xl font-bold mb-2">Pase de lista de hoy</h2>
+                <p className="text-muted mb-4 max-w-md mx-auto">
+                  Al iniciarlo se genera un código de 4 dígitos. Los alumnos entran a la
+                  página, buscan su nombre y escriben ese código para quedar registrados.
+                </p>
+                <button
+                  onClick={() => toggleSession("open")}
+                  disabled={busy}
+                  className="rounded-xl bg-accent hover:bg-accent-hover text-white text-lg font-semibold px-6 py-3"
+                >
+                  {busy ? "Iniciando…" : "Iniciar pase de lista"}
+                </button>
+              </>
+            )}
+          </section>
+
+          <section className="flex items-center gap-3 mb-4">
+            <h2 className="font-bold text-lg">Lista de hoy</h2>
+            <span className="text-muted">
+              {presentCount} / {rows.length} presentes
+            </span>
+          </section>
+          <p className="text-muted text-sm mb-3">
+            Toca un nombre para marcarlo o desmarcarlo manualmente.
+          </p>
+
+          <ul className="space-y-2">
+            {rows.map((r) => (
+              <li key={r.id}>
+                <button
+                  onClick={() => toggleStudent(r)}
+                  className={`w-full flex items-center justify-between rounded-xl border px-4 py-3 text-left transition-colors ${
+                    r.present
+                      ? "border-success/40 bg-success/10"
+                      : "border-border bg-card hover:border-accent"
+                  }`}
+                >
+                  <span>{r.name}</span>
+                  <span className={r.present ? "text-success font-semibold" : "text-muted"}>
+                    {r.present
+                      ? `✓ ${formatTime(r.checkedInAt)}${r.markedBy === "admin" ? " (manual)" : ""}`
+                      : "Ausente"}
+                  </span>
+                </button>
+              </li>
+            ))}
+            {rows.length === 0 && (
+              <li className="text-center text-muted py-8">No hay alumnos cargados todavía.</li>
+            )}
+          </ul>
+        </>
+      )}
+
+      {tab === "historial" && !historyDate && (
+        <>
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-muted">
+              Cada día de clase queda guardado aquí. Toca una fecha para ver quiénes asistieron.
+            </p>
             <button
-              onClick={() => toggleStudent(r)}
-              className={`w-full flex items-center justify-between rounded-xl border px-4 py-3 text-left transition-colors ${
-                r.present
-                  ? "border-success/40 bg-success/10"
-                  : "border-border bg-card hover:border-accent"
-              }`}
+              onClick={exportCsv}
+              className="shrink-0 ml-3 rounded-xl border border-border px-4 py-2 text-sm hover:border-accent"
             >
-              <span>{r.name}</span>
-              <span className={r.present ? "text-success font-semibold" : "text-muted"}>
-                {r.present
-                  ? `✓ Presente${r.markedBy === "admin" ? " (manual)" : ""}`
-                  : "Ausente"}
-              </span>
+              Descargar Excel
             </button>
-          </li>
-        ))}
-        {rows.length === 0 && (
-          <li className="text-center text-muted py-8">
-            No hay alumnos cargados todavía{viewingToday ? "" : " para esa sesión"}.
-          </li>
-        )}
-      </ul>
+          </div>
+          <ul className="space-y-2">
+            {sessions.map((s) => (
+              <li key={s.id}>
+                <button
+                  onClick={() => setHistoryDate(s.id)}
+                  className="w-full flex items-center justify-between rounded-xl border border-border bg-card px-4 py-4 text-left hover:border-accent transition-colors"
+                >
+                  <span className="capitalize font-semibold">{formatDate(s.id)}</span>
+                  <span className="text-muted">
+                    {s.present} asistente{s.present === 1 ? "" : "s"} →
+                  </span>
+                </button>
+              </li>
+            ))}
+            {sessions.length === 0 && (
+              <li className="text-center text-muted py-8">
+                Todavía no hay días registrados. Se guardan al iniciar el pase de lista.
+              </li>
+            )}
+          </ul>
+        </>
+      )}
+
+      {tab === "historial" && historyDate && (
+        <>
+          <div className="flex items-center gap-3 mb-4">
+            <button
+              onClick={() => {
+                setHistoryDate(null);
+                setHistoryRows([]);
+              }}
+              className="rounded-xl border border-border px-3 py-2 text-sm text-muted hover:text-foreground"
+            >
+              ← Fechas
+            </button>
+            <h2 className="font-bold text-lg capitalize">{formatDate(historyDate)}</h2>
+            <span className="text-muted">
+              {historyRows.filter((r) => r.present).length} / {historyRows.length}
+            </span>
+          </div>
+          <p className="text-muted text-sm mb-3">
+            Toca un nombre si necesitas corregir la asistencia de ese día.
+          </p>
+          <ul className="space-y-2">
+            {historyRows.map((r) => (
+              <li key={r.id}>
+                <button
+                  onClick={() => toggleStudent(r, historyDate)}
+                  className={`w-full flex items-center justify-between rounded-xl border px-4 py-3 text-left transition-colors ${
+                    r.present
+                      ? "border-success/40 bg-success/10"
+                      : "border-border bg-card hover:border-accent"
+                  }`}
+                >
+                  <span>{r.name}</span>
+                  <span className={r.present ? "text-success font-semibold" : "text-muted"}>
+                    {r.present
+                      ? `✓ ${formatTime(r.checkedInAt)}${r.markedBy === "admin" ? " (manual)" : ""}`
+                      : "Ausente"}
+                  </span>
+                </button>
+              </li>
+            ))}
+            {historyRows.length === 0 && (
+              <li className="text-center text-muted py-8">Cargando…</li>
+            )}
+          </ul>
+        </>
+      )}
     </main>
   );
 }
