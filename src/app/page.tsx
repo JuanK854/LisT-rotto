@@ -78,13 +78,6 @@ export default function StudentPage() {
           Remotto · Taller Vibe Coding
         </p>
         <h1 className="text-3xl sm:text-4xl font-bold">Pase de lista</h1>
-        {!loading && (
-          <p className={`mt-3 text-lg ${sessionOpen ? "text-success" : "text-muted"}`}>
-            {sessionOpen
-              ? "● La sesión de hoy está abierta"
-              : "○ No hay sesión activa en este momento"}
-          </p>
-        )}
       </header>
 
       {confirmed && (
