@@ -1,14 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import {
-  GoogleAuthProvider,
-  onAuthStateChanged,
-  signInWithPopup,
-  signOut,
-  type User,
-} from "firebase/auth";
-import { clientAuth } from "@/lib/firebase-client";
+import type { Session } from "@supabase/supabase-js";
+import { clientAuth } from "@/lib/supabase-client";
 
 type Row = {
   id: string;
@@ -21,9 +15,12 @@ type Row = {
 type SessionInfo = { sessionId: string; open: boolean; code: string | null };
 
 export default function AdminPage() {
-  const [user, setUser] = useState<User | null>(null);
+  const [authSession, setAuthSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [authError, setAuthError] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loggingIn, setLoggingIn] = useState(false);
 
   const [session, setSession] = useState<SessionInfo | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
@@ -32,13 +29,21 @@ export default function AdminPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => onAuthStateChanged(clientAuth(), (u) => {
-    setUser(u);
-    setAuthReady(true);
-  }), []);
+  useEffect(() => {
+    const supa = clientAuth();
+    supa.auth.getSession().then(({ data }) => {
+      setAuthSession(data.session);
+      setAuthReady(true);
+    });
+    const { data: sub } = supa.auth.onAuthStateChange((_event, s) => {
+      setAuthSession(s);
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
 
   const api = useCallback(async (path: string, init?: RequestInit) => {
-    const token = await clientAuth().currentUser?.getIdToken();
+    const { data } = await clientAuth().auth.getSession();
+    const token = data.session?.access_token;
     const res = await fetch(path, {
       ...init,
       headers: {
@@ -82,21 +87,24 @@ export default function AdminPage() {
 
   // Carga inicial + polling cada 10s mientras hay usuario
   useEffect(() => {
-    if (!user) return;
+    if (!authSession) return;
     // refresh es async: el setState ocurre tras la respuesta de red, no en el render
     // eslint-disable-next-line react-hooks/set-state-in-effect
     refresh();
     const id = setInterval(refresh, 10_000);
     return () => clearInterval(id);
-  }, [user, refresh]);
+  }, [authSession, refresh]);
 
-  async function login() {
+  async function login(e: React.FormEvent) {
+    e.preventDefault();
     setAuthError("");
-    try {
-      await signInWithPopup(clientAuth(), new GoogleAuthProvider());
-    } catch {
-      setAuthError("No se pudo iniciar sesión");
-    }
+    setLoggingIn(true);
+    const { error } = await clientAuth().auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (error) setAuthError("Email o contraseña incorrectos");
+    setLoggingIn(false);
   }
 
   async function toggleSession(action: "open" | "close") {
@@ -153,22 +161,44 @@ export default function AdminPage() {
     return <main className="flex-1 grid place-items-center text-muted">Cargando…</main>;
   }
 
-  if (!user) {
+  if (!authSession) {
     return (
       <main className="flex-1 grid place-items-center px-4">
-        <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-8 text-center">
+        <form
+          onSubmit={login}
+          className="w-full max-w-sm rounded-2xl border border-border bg-card p-8 text-center"
+        >
           <p className="font-semibold tracking-widest uppercase text-sm mb-2 bg-gradient-to-r from-accent to-accent-secondary bg-clip-text text-transparent">
             Remotto · Taller Vibe Coding
           </p>
           <h1 className="text-2xl font-bold mb-6">Panel de administración</h1>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Email"
+            autoComplete="email"
+            required
+            className="w-full mb-3 rounded-xl border border-border bg-background px-4 py-3 outline-none focus:border-accent"
+          />
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Contraseña"
+            autoComplete="current-password"
+            required
+            className="w-full mb-5 rounded-xl border border-border bg-background px-4 py-3 outline-none focus:border-accent"
+          />
           <button
-            onClick={login}
-            className="w-full rounded-xl bg-accent hover:bg-accent-hover text-white text-lg font-semibold py-3 transition-colors"
+            type="submit"
+            disabled={loggingIn}
+            className="w-full rounded-xl bg-accent hover:bg-accent-hover disabled:opacity-40 text-white text-lg font-semibold py-3 transition-colors"
           >
-            Entrar con Google
+            {loggingIn ? "Entrando…" : "Entrar"}
           </button>
           {authError && <p className="text-danger mt-4">{authError}</p>}
-        </div>
+        </form>
       </main>
     );
   }
@@ -186,7 +216,7 @@ export default function AdminPage() {
           <h1 className="text-2xl font-bold">Panel de asistencia</h1>
         </div>
         <button
-          onClick={() => signOut(clientAuth())}
+          onClick={() => clientAuth().auth.signOut()}
           className="text-muted hover:text-foreground text-sm border border-border rounded-lg px-3 py-2"
         >
           Salir

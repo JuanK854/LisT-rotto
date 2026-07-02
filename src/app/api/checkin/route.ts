@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { FieldValue } from "firebase-admin/firestore";
-import { db, todaySessionId } from "@/lib/firebase-admin";
+import { db, todaySessionId } from "@/lib/supabase-admin";
 import { rateLimit, clientIp } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -31,36 +30,47 @@ export async function POST(req: NextRequest) {
   }
 
   const sessionId = todaySessionId();
-  const sessionSnap = await db().collection("sessions").doc(sessionId).get();
-  if (!sessionSnap.exists || sessionSnap.data()?.open !== true) {
+  const { data: session } = await db()
+    .from("sessions")
+    .select("open, code")
+    .eq("id", sessionId)
+    .maybeSingle();
+
+  if (!session?.open) {
     return NextResponse.json(
       { error: "No hay una sesión abierta hoy" },
       { status: 409 }
     );
   }
-  if (sessionSnap.data()?.code !== code) {
+  if (session.code !== code) {
     return NextResponse.json({ error: "Código incorrecto" }, { status: 403 });
   }
 
-  const studentSnap = await db().collection("students").doc(studentId).get();
-  if (!studentSnap.exists || studentSnap.data()?.active !== true) {
+  const { data: student } = await db()
+    .from("students")
+    .select("id, name")
+    .eq("id", studentId)
+    .eq("active", true)
+    .maybeSingle();
+
+  if (!student) {
     return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });
   }
 
-  const attendanceId = `${sessionId}_${studentId}`;
-  const ref = db().collection("attendance").doc(attendanceId);
-  const existing = await ref.get();
-  if (existing.exists) {
+  const { error } = await db().from("attendance").insert({
+    session_id: sessionId,
+    student_id: studentId,
+    student_name: student.name,
+    marked_by: "self",
+  });
+
+  // 23505 = ya existía (llave primaria compuesta): check-in duplicado, no es error
+  if (error && error.code === "23505") {
     return NextResponse.json({ ok: true, alreadyChecked: true });
   }
-
-  await ref.create({
-    studentId,
-    studentName: studentSnap.data()?.name ?? "",
-    sessionId,
-    checkedInAt: FieldValue.serverTimestamp(),
-    markedBy: "self",
-  });
+  if (error) {
+    return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
+  }
 
   return NextResponse.json({ ok: true, alreadyChecked: false });
 }

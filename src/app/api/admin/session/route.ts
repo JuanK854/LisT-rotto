@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { FieldValue } from "firebase-admin/firestore";
-import { db, todaySessionId } from "@/lib/firebase-admin";
+import { db, todaySessionId } from "@/lib/supabase-admin";
 import { verifyAdmin, unauthorized } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -11,15 +10,19 @@ export async function GET(req: NextRequest) {
   if (!admin) return unauthorized();
 
   const sessionId = todaySessionId();
-  const snap = await db().collection("sessions").doc(sessionId).get();
-  if (!snap.exists) {
+  const { data } = await db()
+    .from("sessions")
+    .select("open, code")
+    .eq("id", sessionId)
+    .maybeSingle();
+
+  if (!data) {
     return NextResponse.json({ sessionId, exists: false });
   }
-  const data = snap.data()!;
   return NextResponse.json({
     sessionId,
     exists: true,
-    open: data.open === true,
+    open: data.open,
     code: data.code,
   });
 }
@@ -40,29 +43,31 @@ export async function POST(req: NextRequest) {
   }
 
   const sessionId = todaySessionId();
-  const ref = db().collection("sessions").doc(sessionId);
 
   if (body.action === "open") {
-    const snap = await ref.get();
-    const code = snap.exists
-      ? (snap.data()!.code as string)
-      : String(Math.floor(1000 + Math.random() * 9000));
+    const { data: existing } = await db()
+      .from("sessions")
+      .select("code")
+      .eq("id", sessionId)
+      .maybeSingle();
 
-    await ref.set(
-      {
-        date: sessionId,
-        code,
-        open: true,
-        createdAt: snap.exists ? snap.data()!.createdAt : FieldValue.serverTimestamp(),
-        openedBy: admin.email,
-      },
-      { merge: true }
-    );
+    const code =
+      existing?.code ?? String(Math.floor(1000 + Math.random() * 9000));
+
+    const { error } = await db().from("sessions").upsert({
+      id: sessionId,
+      code,
+      open: true,
+      opened_by: admin.email,
+    });
+    if (error) {
+      return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
+    }
     return NextResponse.json({ sessionId, open: true, code });
   }
 
   if (body.action === "close") {
-    await ref.set({ open: false }, { merge: true });
+    await db().from("sessions").update({ open: false }).eq("id", sessionId);
     return NextResponse.json({ sessionId, open: false });
   }
 

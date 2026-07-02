@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { FieldValue } from "firebase-admin/firestore";
-import { db, todaySessionId } from "@/lib/firebase-admin";
+import { db, todaySessionId } from "@/lib/supabase-admin";
 import { verifyAdmin, unauthorized } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -20,27 +19,32 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Sesión inválida" }, { status: 400 });
   }
 
-  const [studentsSnap, attendanceSnap] = await Promise.all([
-    db().collection("students").where("active", "==", true).get(),
-    db().collection("attendance").where("sessionId", "==", sessionId).get(),
+  const [studentsRes, attendanceRes] = await Promise.all([
+    db().from("students").select("id, name").eq("active", true).order("name"),
+    db()
+      .from("attendance")
+      .select("student_id, marked_by, checked_in_at")
+      .eq("session_id", sessionId),
   ]);
 
+  if (studentsRes.error || attendanceRes.error) {
+    return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
+  }
+
   const attendance = new Map(
-    attendanceSnap.docs.map((d) => [d.data().studentId as string, d.data()])
+    attendanceRes.data.map((a) => [a.student_id, a])
   );
 
-  const students = studentsSnap.docs
-    .map((d) => {
-      const record = attendance.get(d.id);
-      return {
-        id: d.id,
-        name: d.data().name as string,
-        present: !!record,
-        markedBy: record?.markedBy ?? null,
-        checkedInAt: record?.checkedInAt?.toDate?.()?.toISOString() ?? null,
-      };
-    })
-    .sort((a, b) => a.name.localeCompare(b.name, "es"));
+  const students = studentsRes.data.map((s) => {
+    const record = attendance.get(s.id);
+    return {
+      id: s.id,
+      name: s.name,
+      present: !!record,
+      markedBy: record?.marked_by ?? null,
+      checkedInAt: record?.checked_in_at ?? null,
+    };
+  });
 
   return NextResponse.json({ sessionId, students });
 }
@@ -66,23 +70,35 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Datos incompletos" }, { status: 400 });
   }
 
-  const attendanceId = `${sessionId}_${studentId}`;
-  const ref = db().collection("attendance").doc(attendanceId);
-
   if (body.present) {
-    const studentSnap = await db().collection("students").doc(studentId).get();
-    if (!studentSnap.exists) {
+    const { data: student } = await db()
+      .from("students")
+      .select("id, name")
+      .eq("id", studentId)
+      .maybeSingle();
+    if (!student) {
       return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });
     }
-    await ref.set({
-      studentId,
-      studentName: studentSnap.data()?.name ?? "",
-      sessionId,
-      checkedInAt: FieldValue.serverTimestamp(),
-      markedBy: "admin",
+    // La sesión debe existir para respetar la llave foránea (marcar en fechas pasadas)
+    await db()
+      .from("sessions")
+      .upsert({ id: sessionId, code: "0000", open: false }, { ignoreDuplicates: true });
+
+    const { error } = await db().from("attendance").upsert({
+      session_id: sessionId,
+      student_id: studentId,
+      student_name: student.name,
+      marked_by: "admin",
     });
+    if (error) {
+      return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
+    }
   } else {
-    await ref.delete();
+    await db()
+      .from("attendance")
+      .delete()
+      .eq("session_id", sessionId)
+      .eq("student_id", studentId);
   }
 
   return NextResponse.json({ ok: true });

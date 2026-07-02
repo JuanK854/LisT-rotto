@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminAuth } from "./firebase-admin";
+import { db } from "./supabase-admin";
 
-export type AdminUser = { uid: string; email: string };
+export type AdminUser = { id: string; email: string };
 
 function allowedEmails(): Set<string> {
   return new Set(
@@ -13,7 +13,7 @@ function allowedEmails(): Set<string> {
 }
 
 /**
- * Valida el ID token de Firebase del header Authorization y que el email
+ * Valida el access token de Supabase del header Authorization y que el email
  * esté en la allowlist ADMIN_EMAILS. Devuelve el admin o null.
  */
 export async function verifyAdmin(req: NextRequest): Promise<AdminUser | null> {
@@ -21,15 +21,12 @@ export async function verifyAdmin(req: NextRequest): Promise<AdminUser | null> {
   const match = header.match(/^Bearer (.+)$/);
   if (!match) return null;
 
-  try {
-    const decoded = await adminAuth().verifyIdToken(match[1]);
-    const email = decoded.email?.toLowerCase();
-    if (!email || !decoded.email_verified) return null;
-    if (!allowedEmails().has(email)) return null;
-    return { uid: decoded.uid, email };
-  } catch {
-    return null;
-  }
+  const { data, error } = await db().auth.getUser(match[1]);
+  if (error || !data.user) return null;
+
+  const email = data.user.email?.toLowerCase();
+  if (!email || !allowedEmails().has(email)) return null;
+  return { id: data.user.id, email };
 }
 
 export function unauthorized(): NextResponse {

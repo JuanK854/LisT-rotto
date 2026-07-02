@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db, todaySessionId } from "@/lib/firebase-admin";
+import { db, todaySessionId } from "@/lib/supabase-admin";
 
 export const dynamic = "force-dynamic";
 
@@ -11,21 +11,25 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const sessionId = todaySessionId();
 
-  const [studentsSnap, sessionSnap, attendanceSnap] = await Promise.all([
-    db().collection("students").where("active", "==", true).get(),
-    db().collection("sessions").doc(sessionId).get(),
-    db().collection("attendance").where("sessionId", "==", sessionId).get(),
+  const [studentsRes, sessionRes, attendanceRes] = await Promise.all([
+    db().from("students").select("id, name").eq("active", true).order("name"),
+    db().from("sessions").select("open").eq("id", sessionId).maybeSingle(),
+    db().from("attendance").select("student_id").eq("session_id", sessionId),
   ]);
 
-  const students = studentsSnap.docs
-    .map((d) => ({ id: d.id, name: d.data().name as string }))
-    .sort((a, b) => a.name.localeCompare(b.name, "es"));
+  if (studentsRes.error || attendanceRes.error) {
+    return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
+  }
 
-  const present = new Set(attendanceSnap.docs.map((d) => d.data().studentId));
+  const present = new Set(attendanceRes.data.map((a) => a.student_id));
 
   return NextResponse.json({
-    sessionOpen: sessionSnap.exists && sessionSnap.data()?.open === true,
+    sessionOpen: sessionRes.data?.open === true,
     sessionId,
-    students: students.map((s) => ({ ...s, present: present.has(s.id) })),
+    students: studentsRes.data.map((s) => ({
+      id: s.id,
+      name: s.name,
+      present: present.has(s.id),
+    })),
   });
 }
