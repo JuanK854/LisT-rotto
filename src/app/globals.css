@@ -1,28 +1,46 @@
 @import "tailwindcss";
 
+/* Tokens tomados del design system de remotto.ai */
 :root {
-  --background: #0a0a0f;
-  --foreground: #f4f4f5;
-  --accent: #6366f1;
-  --accent-hover: #818cf8;
-  --card: #14141c;
-  --border: #27272f;
-  --muted: #a1a1aa;
-  --success: #22c55e;
-  --danger: #ef4444;
+  --background: #f6f6fb;
+  --foreground: #0c0c16;
+  --card: #fbfbff;
+  --border: #e0e0eb;
+  --muted: #565666;
+  --accent: #5b2ddb;
+  --accent-hover: #6d43e4;
+  --accent-secondary: #bf51c7;
+  --success: #00b568;
+  --danger: #e40014;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #06070d;
+    --foreground: #eeeef3;
+    --card: #10111b;
+    --border: #262835;
+    --muted: #8d8e9b;
+    --accent: #8f81ff;
+    --accent-hover: #a396ff;
+    --accent-secondary: #da6ae1;
+    --success: #00b568;
+    --danger: #f94144;
+  }
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-accent: var(--accent);
-  --color-accent-hover: var(--accent-hover);
   --color-card: var(--card);
   --color-border: var(--border);
   --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-secondary: var(--accent-secondary);
   --color-success: var(--success);
   --color-danger: var(--danger);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-inter);
   --font-mono: var(--font-geist-mono);
 }
 

@@ -157,8 +157,8 @@ export default function AdminPage() {
     return (
       <main className="flex-1 grid place-items-center px-4">
         <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-8 text-center">
-          <p className="text-accent font-semibold tracking-widest uppercase text-sm mb-2">
-            Curso Vibe Coding
+          <p className="font-semibold tracking-widest uppercase text-sm mb-2 bg-gradient-to-r from-accent to-accent-secondary bg-clip-text text-transparent">
+            Remotto · Taller Vibe Coding
           </p>
           <h1 className="text-2xl font-bold mb-6">Panel de administración</h1>
           <button
@@ -180,8 +180,8 @@ export default function AdminPage() {
     <main className="flex-1 w-full max-w-3xl mx-auto px-4 py-8">
       <header className="flex items-center justify-between mb-6">
         <div>
-          <p className="text-accent font-semibold tracking-widest uppercase text-xs">
-            Curso Vibe Coding
+          <p className="font-semibold tracking-widest uppercase text-xs bg-gradient-to-r from-accent to-accent-secondary bg-clip-text text-transparent">
+            Remotto · Taller Vibe Coding
           </p>
           <h1 className="text-2xl font-bold">Panel de asistencia</h1>
         </div>

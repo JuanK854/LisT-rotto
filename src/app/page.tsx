@@ -74,8 +74,8 @@ export default function StudentPage() {
   return (
     <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-8 sm:py-12">
       <header className="text-center mb-8">
-        <p className="text-accent font-semibold tracking-widest uppercase text-sm mb-2">
-          Curso Vibe Coding
+        <p className="font-semibold tracking-widest uppercase text-sm mb-2 bg-gradient-to-r from-accent to-accent-secondary bg-clip-text text-transparent">
+          Remotto · Taller Vibe Coding
         </p>
         <h1 className="text-3xl sm:text-4xl font-bold">Pase de lista</h1>
         {!loading && (
