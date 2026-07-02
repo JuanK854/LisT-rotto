@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-type Student = { id: string; name: string; present: boolean };
+type Student = { id: string; name: string };
 
 function normalize(text: string): string {
   return text
@@ -15,13 +15,15 @@ export default function StudentPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [sessionOpen, setSessionOpen] = useState(false);
+  const [sessionId, setSessionId] = useState("");
   const [students, setStudents] = useState<Student[]>([]);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Student | null>(null);
   const [code, setCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [modalError, setModalError] = useState("");
-  const [confirmed, setConfirmed] = useState<string | null>(null);
+  // { name, already } — already=true si intentó registrarse dos veces
+  const [confirmed, setConfirmed] = useState<{ name: string; already: boolean } | null>(null);
 
   useEffect(() => {
     fetch("/api/students")
@@ -31,7 +33,11 @@ export default function StudentPage() {
       })
       .then((data) => {
         setSessionOpen(data.sessionOpen);
+        setSessionId(data.sessionId);
         setStudents(data.students);
+        // Si este dispositivo ya registró a alguien hoy, mostrarlo de una vez
+        const saved = localStorage.getItem(`checkin-${data.sessionId}`);
+        if (saved) setConfirmed({ name: saved, already: false });
       })
       .catch(() => setError("No se pudo cargar la lista. Recarga la página."))
       .finally(() => setLoading(false));
@@ -58,10 +64,8 @@ export default function StudentPage() {
         setModalError(data.error || "Ocurrió un error, intenta de nuevo");
         return;
       }
-      setStudents((prev) =>
-        prev.map((s) => (s.id === selected.id ? { ...s, present: true } : s))
-      );
-      setConfirmed(selected.name);
+      localStorage.setItem(`checkin-${sessionId}`, selected.name);
+      setConfirmed({ name: selected.name, already: data.alreadyChecked === true });
       setSelected(null);
       setCode("");
     } catch {
@@ -82,8 +86,14 @@ export default function StudentPage() {
 
       {confirmed && (
         <div className="mb-6 rounded-2xl border border-success/40 bg-success/10 p-6 text-center">
-          <p className="text-2xl font-bold text-success">✓ ¡Listo, {confirmed}!</p>
-          <p className="text-lg mt-1">Tu asistencia quedó registrada.</p>
+          <p className="text-2xl font-bold text-success">
+            {confirmed.already ? "✓ Ya estabas registrado" : `✓ ¡Listo, ${confirmed.name}!`}
+          </p>
+          <p className="text-lg mt-1">
+            {confirmed.already
+              ? `${confirmed.name}, tu asistencia de hoy ya estaba guardada.`
+              : "Tu asistencia quedó registrada."}
+          </p>
         </div>
       )}
 
@@ -109,22 +119,19 @@ export default function StudentPage() {
               <li key={s.id}>
                 <button
                   onClick={() => {
-                    if (s.present || !sessionOpen) return;
+                    if (!sessionOpen) return;
                     setSelected(s);
                     setCode("");
                     setModalError("");
                   }}
-                  disabled={s.present || !sessionOpen}
+                  disabled={!sessionOpen}
                   className={`w-full text-left text-lg rounded-xl border px-5 py-4 transition-colors ${
-                    s.present
-                      ? "border-success/40 bg-success/10 text-success"
-                      : sessionOpen
-                        ? "border-border bg-card hover:border-accent active:bg-accent/10"
-                        : "border-border bg-card text-muted"
+                    sessionOpen
+                      ? "border-border bg-card hover:border-accent active:bg-accent/10"
+                      : "border-border bg-card text-muted"
                   }`}
                 >
                   {s.name}
-                  {s.present && <span className="float-right font-bold">✓ Presente</span>}
                 </button>
               </li>
             ))}
