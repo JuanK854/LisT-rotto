@@ -174,6 +174,23 @@ export default function AdminPage() {
     }
   }
 
+  async function deleteSession(sessionId: string) {
+    if (
+      !window.confirm(
+        `¿Eliminar el pase de lista del ${formatDate(sessionId)}? Se borra también su asistencia. Esto no se puede deshacer.`
+      )
+    )
+      return;
+    try {
+      await api(`/api/admin/session?session=${sessionId}`, { method: "DELETE" });
+      setHistoryDate(null);
+      setHistoryRows([]);
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    }
+  }
+
   async function exportCsv() {
     try {
       const res = await api("/api/admin/export");
@@ -373,15 +390,22 @@ export default function AdminPage() {
           </div>
           <ul className="space-y-2">
             {sessions.map((s) => (
-              <li key={s.id}>
+              <li key={s.id} className="flex items-stretch gap-2">
                 <button
                   onClick={() => setHistoryDate(s.id)}
-                  className="w-full flex items-center justify-between rounded-xl border border-border bg-card px-4 py-4 text-left hover:border-accent transition-colors"
+                  className="flex-1 flex items-center justify-between rounded-xl border border-border bg-card px-4 py-4 text-left hover:border-accent transition-colors"
                 >
                   <span className="capitalize font-semibold">{formatDate(s.id)}</span>
                   <span className="text-muted">
                     {s.present} asistente{s.present === 1 ? "" : "s"} →
                   </span>
+                </button>
+                <button
+                  onClick={() => deleteSession(s.id)}
+                  title="Eliminar este pase de lista"
+                  className="shrink-0 rounded-xl border border-border px-4 text-muted hover:border-danger hover:text-danger transition-colors"
+                >
+                  🗑
                 </button>
               </li>
             ))}

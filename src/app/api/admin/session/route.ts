@@ -51,7 +51,8 @@ export async function POST(req: NextRequest) {
       .eq("id", sessionId)
       .maybeSingle();
 
-    // "0000" es el placeholder que deja el marcado manual: nunca usarlo como código real
+    // Un código por día: reabrir el mismo día conserva el código.
+    // "0000" es el placeholder que deja el marcado manual: nunca usarlo como código real.
     const code =
       existing?.code && existing.code !== "0000"
         ? existing.code
@@ -75,4 +76,24 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ error: "Acción inválida" }, { status: 400 });
+}
+
+/**
+ * DELETE /api/admin/session?session=YYYY-MM-DD
+ * Elimina un pase de lista completo; su asistencia se borra en cascada.
+ */
+export async function DELETE(req: NextRequest) {
+  const admin = await verifyAdmin(req);
+  if (!admin) return unauthorized();
+
+  const sessionId = req.nextUrl.searchParams.get("session") || "";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(sessionId)) {
+    return NextResponse.json({ error: "Sesión inválida" }, { status: 400 });
+  }
+
+  const { error } = await db().from("sessions").delete().eq("id", sessionId);
+  if (error) {
+    return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
+  }
+  return NextResponse.json({ ok: true });
 }
