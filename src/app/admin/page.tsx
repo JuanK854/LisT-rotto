@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import type { Session } from "@supabase/supabase-js";
 import { clientAuth } from "@/lib/supabase-client";
 
@@ -247,6 +248,15 @@ export default function AdminPage() {
             {loggingIn ? "Entrando…" : "Entrar"}
           </button>
           {authError && <p className="text-danger mt-4">{authError}</p>}
+          <p className="mt-6 text-muted">
+            Esta pantalla es solo para los instructores.
+          </p>
+          <Link
+            href="/"
+            className="mt-3 block w-full rounded-xl border border-border text-lg py-3 text-foreground hover:border-accent transition-colors"
+          >
+            ← Volver al pase de lista
+          </Link>
         </form>
       </main>
     );
