@@ -42,6 +42,7 @@ export default function AdminPage() {
   const [loggingIn, setLoggingIn] = useState(false);
 
   const [tab, setTab] = useState<"hoy" | "historial">("hoy");
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [session, setSession] = useState<SessionInfo | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
@@ -192,6 +193,17 @@ export default function AdminPage() {
     }
   }
 
+  async function showQr() {
+    // Carga diferida: la librería solo se descarga cuando se usa
+    const QRCode = (await import("qrcode")).default;
+    const url = await QRCode.toDataURL(window.location.origin, {
+      width: 960,
+      margin: 2,
+      errorCorrectionLevel: "M",
+    });
+    setQrDataUrl(url);
+  }
+
   async function exportCsv() {
     try {
       const res = await api("/api/admin/export");
@@ -306,6 +318,12 @@ export default function AdminPage() {
           }`}
         >
           Historial
+        </button>
+        <button
+          onClick={showQr}
+          className="ml-auto rounded-xl border border-border px-5 py-2 font-semibold text-muted hover:text-foreground hover:border-accent transition-colors"
+        >
+          ⛶ Proyectar QR
         </button>
       </nav>
 
@@ -473,6 +491,24 @@ export default function AdminPage() {
             )}
           </ul>
         </>
+      )}
+
+      {qrDataUrl && (
+        <div
+          onClick={() => setQrDataUrl(null)}
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-white cursor-pointer p-8"
+        >
+          <p className="text-3xl sm:text-5xl font-bold text-black text-center">
+            Escanea para pasar lista
+          </p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={qrDataUrl}
+            alt="Código QR del pase de lista"
+            className="w-[min(70vh,90vw)] max-w-full"
+          />
+          <p className="text-xl text-neutral-500">Toca en cualquier lado para cerrar</p>
+        </div>
       )}
     </main>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type Student = { id: string; name: string };
 
@@ -24,14 +24,17 @@ export default function StudentPage() {
   const [modalError, setModalError] = useState("");
   // { name, already } — already=true si intentó registrarse dos veces
   const [confirmed, setConfirmed] = useState<{ name: string; already: boolean } | null>(null);
+  // Permite registrar a otra persona desde el mismo dispositivo
+  const [showList, setShowList] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     fetch("/api/students")
       .then((r) => {
         if (!r.ok) throw new Error();
         return r.json();
       })
       .then((data) => {
+        setError("");
         setSessionOpen(data.sessionOpen);
         setSessionId(data.sessionId);
         setStudents(data.students);
@@ -42,6 +45,17 @@ export default function StudentPage() {
       .catch(() => setError("No se pudo cargar la lista. Recarga la página."))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    load();
+    // Al volver con "atrás" el navegador restaura la página congelada (bfcache):
+    // hay que volver a pedir los datos para que la lista siempre cargue.
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) load();
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, [load]);
 
   const filtered = useMemo(() => {
     const q = normalize(query.trim());
@@ -68,12 +82,15 @@ export default function StudentPage() {
       setConfirmed({ name: selected.name, already: data.alreadyChecked === true });
       setSelected(null);
       setCode("");
+      setShowList(false);
     } catch {
       setModalError("Error de conexión, intenta de nuevo");
     } finally {
       setSubmitting(false);
     }
   }
+
+  const registered = confirmed !== null;
 
   return (
     <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-8 sm:py-12">
@@ -85,14 +102,14 @@ export default function StudentPage() {
       </header>
 
       {confirmed && (
-        <div className="mb-6 rounded-2xl border border-success/40 bg-success/10 p-6 text-center">
-          <p className="text-2xl font-bold text-success">
+        <div className="mb-6 rounded-2xl border border-success/40 bg-success/10 p-8 text-center">
+          <p className="text-3xl font-bold text-success">
             {confirmed.already ? "✓ Ya estabas registrado" : `✓ ¡Listo, ${confirmed.name}!`}
           </p>
-          <p className="text-lg mt-1">
+          <p className="text-xl mt-2">
             {confirmed.already
               ? `${confirmed.name}, tu asistencia de hoy ya estaba guardada.`
-              : "Tu asistencia quedó registrada."}
+              : "Tu asistencia de hoy quedó registrada. Ya no tienes que hacer nada más."}
           </p>
         </div>
       )}
@@ -103,6 +120,15 @@ export default function StudentPage() {
 
       {loading ? (
         <p className="text-center text-muted text-lg">Cargando lista…</p>
+      ) : registered && !showList ? (
+        <p className="text-center">
+          <button
+            onClick={() => setShowList(true)}
+            className="text-muted underline underline-offset-4 hover:text-foreground text-lg"
+          >
+            Registrar a otra persona desde este dispositivo
+          </button>
+        </p>
       ) : (
         <>
           <input
