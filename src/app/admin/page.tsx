@@ -309,12 +309,20 @@ export default function AdminPage() {
           </p>
           <h1 className="text-2xl font-bold">Panel de asistencia</h1>
         </div>
-        <button
-          onClick={() => clientAuth().auth.signOut()}
-          className="text-muted hover:text-foreground text-sm border border-border rounded-lg px-3 py-2"
-        >
-          Salir
-        </button>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/"
+            className="text-muted hover:text-foreground text-sm border border-border hover:border-accent rounded-lg px-3 py-2 transition-colors"
+          >
+            Ver pase de lista
+          </Link>
+          <button
+            onClick={() => clientAuth().auth.signOut()}
+            className="text-muted hover:text-foreground text-sm border border-border rounded-lg px-3 py-2"
+          >
+            Salir
+          </button>
+        </div>
       </header>
 
       {error && (
