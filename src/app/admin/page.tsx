@@ -50,6 +50,9 @@ export default function AdminPage() {
   const [historyRows, setHistoryRows] = useState<Row[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [newName, setNewName] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [addMessage, setAddMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
     const supa = clientAuth();
@@ -190,6 +193,27 @@ export default function AdminPage() {
       await refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
+    }
+  }
+
+  async function addStudent(e: React.FormEvent) {
+    e.preventDefault();
+    if (adding) return;
+    setAdding(true);
+    setAddMessage(null);
+    try {
+      const res = await api("/api/admin/students", {
+        method: "POST",
+        body: JSON.stringify({ name: newName }),
+      });
+      const data = await res.json();
+      setAddMessage({ ok: true, text: `${data.name} ya aparece en la lista` });
+      setNewName("");
+      await refresh();
+    } catch (e) {
+      setAddMessage({ ok: false, text: e instanceof Error ? e.message : "Error" });
+    } finally {
+      setAdding(false);
     }
   }
 
@@ -400,6 +424,36 @@ export default function AdminPage() {
               <li className="text-center text-muted py-8">No hay alumnos cargados todavía.</li>
             )}
           </ul>
+
+          <section className="mt-8 rounded-2xl border border-border bg-card p-5">
+            <h2 className="font-bold text-lg mb-1">Añadir integrante</h2>
+            <p className="text-muted text-sm mb-4">
+              Se agrega a la base de datos y aparece de inmediato en la lista para pasar lista.
+            </p>
+            <form onSubmit={addStudent} className="flex flex-col sm:flex-row gap-3">
+              <input
+                type="text"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="Nombre completo (nombre y apellidos)"
+                required
+                minLength={3}
+                className="flex-1 rounded-xl border border-border bg-background px-4 py-3 outline-none focus:border-accent placeholder:text-muted"
+              />
+              <button
+                type="submit"
+                disabled={adding || newName.trim().length < 3}
+                className="rounded-xl bg-accent hover:bg-accent-hover disabled:opacity-40 text-white font-semibold px-6 py-3 transition-colors"
+              >
+                {adding ? "Añadiendo…" : "Añadir"}
+              </button>
+            </form>
+            {addMessage && (
+              <p className={`mt-3 ${addMessage.ok ? "text-success" : "text-danger"}`}>
+                {addMessage.ok ? "✓ " : ""}{addMessage.text}
+              </p>
+            )}
+          </section>
         </>
       )}
 
