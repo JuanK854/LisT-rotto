@@ -569,7 +569,9 @@ export default function AdminPage() {
             alt="Código QR del pase de lista"
             className="w-[min(70vh,90vw)] max-w-full"
           />
-          <p className="text-xl text-neutral-500">Toca en cualquier lado para cerrar</p>
+          <p className="text-2xl sm:text-4xl font-mono font-bold text-black text-center">
+            {typeof window !== "undefined" ? window.location.host : ""}
+          </p>
         </div>
       )}
     </main>
