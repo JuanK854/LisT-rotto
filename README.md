@@ -1,5 +1,7 @@
 # Asistencia — Taller Vibe Coding (Remotto)
 
+> 📖 **¿Eres instructor y solo quieres saber cómo usarla?** Lee la [Guía para instructores](GUIA.md) — sin tecnicismos.
+
 Página de pase de lista para el taller. Dos modos:
 
 - **`/` (alumnos):** buscan su nombre y se marcan presente con el código de 4 dígitos que se proyecta en clase. Sin cuentas ni contraseñas.
