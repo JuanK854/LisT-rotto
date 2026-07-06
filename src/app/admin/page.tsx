@@ -41,7 +41,7 @@ export default function AdminPage() {
   const [password, setPassword] = useState("");
   const [loggingIn, setLoggingIn] = useState(false);
 
-  const [tab, setTab] = useState<"hoy" | "historial" | "codigo">("hoy");
+  const [tab, setTab] = useState<"hoy" | "historial" | "codigo">("codigo");
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [session, setSession] = useState<SessionInfo | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
@@ -339,6 +339,14 @@ export default function AdminPage() {
 
       <nav className="flex gap-2 mb-6">
         <button
+          onClick={() => setTab("codigo")}
+          className={`rounded-xl px-5 py-2 font-semibold transition-colors ${
+            tab === "codigo" ? "bg-accent text-white" : "border border-border text-muted hover:text-foreground"
+          }`}
+        >
+          Código
+        </button>
+        <button
           onClick={() => setTab("hoy")}
           className={`rounded-xl px-5 py-2 font-semibold transition-colors ${
             tab === "hoy" ? "bg-accent text-white" : "border border-border text-muted hover:text-foreground"
@@ -357,14 +365,6 @@ export default function AdminPage() {
         >
           Historial
         </button>
-        <button
-          onClick={() => setTab("codigo")}
-          className={`rounded-xl px-5 py-2 font-semibold transition-colors ${
-            tab === "codigo" ? "bg-accent text-white" : "border border-border text-muted hover:text-foreground"
-          }`}
-        >
-          Código
-        </button>
       </nav>
 
       {tab === "codigo" && (
@@ -372,7 +372,7 @@ export default function AdminPage() {
           {session?.open ? (
             <>
               <p className="text-muted mb-1">Código para marcar asistencia</p>
-              <p className="text-7xl font-mono font-bold tracking-[0.2em] text-accent">
+              <p className="text-[min(21vw,11rem)] leading-none my-4 font-mono font-bold tracking-[0.15em] text-accent">
                 {session.code}
               </p>
               <p className="text-muted mt-3 max-w-md mx-auto">
