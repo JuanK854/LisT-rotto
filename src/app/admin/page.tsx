@@ -41,7 +41,7 @@ export default function AdminPage() {
   const [password, setPassword] = useState("");
   const [loggingIn, setLoggingIn] = useState(false);
 
-  const [tab, setTab] = useState<"hoy" | "historial">("hoy");
+  const [tab, setTab] = useState<"hoy" | "historial" | "codigo">("hoy");
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [session, setSession] = useState<SessionInfo | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
@@ -220,10 +220,16 @@ export default function AdminPage() {
   async function showQr() {
     // Carga diferida: la librería solo se descarga cuando se usa
     const QRCode = (await import("qrcode")).default;
-    const url = await QRCode.toDataURL(window.location.origin, {
+    // Si el pase está abierto, el QR lleva el código: el alumno ya no lo teclea
+    const target =
+      session?.open && session.code
+        ? `${window.location.origin}/?c=${session.code}`
+        : window.location.origin;
+    // Corrección "H": el QR sigue leyéndose aunque el centro esté tapado por los dígitos
+    const url = await QRCode.toDataURL(target, {
       width: 960,
       margin: 2,
-      errorCorrectionLevel: "M",
+      errorCorrectionLevel: "H",
     });
     setQrDataUrl(url);
   }
@@ -352,52 +358,64 @@ export default function AdminPage() {
           Historial
         </button>
         <button
-          onClick={showQr}
-          className="ml-auto rounded-xl border border-border px-5 py-2 font-semibold text-muted hover:text-foreground hover:border-accent transition-colors"
+          onClick={() => setTab("codigo")}
+          className={`rounded-xl px-5 py-2 font-semibold transition-colors ${
+            tab === "codigo" ? "bg-accent text-white" : "border border-border text-muted hover:text-foreground"
+          }`}
         >
-          ⛶ Proyectar QR
+          Código
         </button>
       </nav>
 
-      {tab === "hoy" && (
-        <>
-          <section className="rounded-2xl border border-border bg-card p-6 mb-6 text-center">
-            {session?.open ? (
-              <>
-                <p className="text-muted mb-1">Código para marcar asistencia</p>
-                <p className="text-7xl font-mono font-bold tracking-[0.2em] text-accent">
-                  {session.code}
-                </p>
-                <p className="text-muted mt-3 max-w-md mx-auto">
-                  Proyecta o dicta este código: cada alumno lo escribe en la página al
-                  seleccionar su nombre. Así nadie puede marcarse desde su casa.
-                </p>
+      {tab === "codigo" && (
+        <section className="rounded-2xl border border-border bg-card p-6 text-center">
+          {session?.open ? (
+            <>
+              <p className="text-muted mb-1">Código para marcar asistencia</p>
+              <p className="text-7xl font-mono font-bold tracking-[0.2em] text-accent">
+                {session.code}
+              </p>
+              <p className="text-muted mt-3 max-w-md mx-auto">
+                Esta pestaña no muestra la lista ni la asistencia: es segura para
+                proyectarla en el salón. El QR ya lleva el código integrado.
+              </p>
+              <div className="mt-5 flex flex-col sm:flex-row justify-center gap-3">
+                <button
+                  onClick={showQr}
+                  className="rounded-xl bg-accent hover:bg-accent-hover text-white text-lg font-semibold px-6 py-3 transition-colors"
+                >
+                  ⛶ Proyectar QR
+                </button>
                 <button
                   onClick={() => toggleSession("close")}
                   disabled={busy}
-                  className="mt-4 rounded-xl border border-danger/50 text-danger px-5 py-2 hover:bg-danger/10"
+                  className="rounded-xl border border-danger/50 text-danger px-5 py-3 hover:bg-danger/10"
                 >
                   Terminar pase de lista
                 </button>
-              </>
-            ) : (
-              <>
-                <h2 className="text-xl font-bold mb-2">Pase de lista de hoy</h2>
-                <p className="text-muted mb-4 max-w-md mx-auto">
-                  Al iniciarlo se genera un código de 4 dígitos. Los alumnos entran a la
-                  página, buscan su nombre y escriben ese código para quedar registrados.
-                </p>
-                <button
-                  onClick={() => toggleSession("open")}
-                  disabled={busy}
-                  className="rounded-xl bg-accent hover:bg-accent-hover text-white text-lg font-semibold px-6 py-3"
-                >
-                  {busy ? "Iniciando…" : "Iniciar pase de lista"}
-                </button>
-              </>
-            )}
-          </section>
+              </div>
+            </>
+          ) : (
+            <>
+              <h2 className="text-xl font-bold mb-2">Pase de lista de hoy</h2>
+              <p className="text-muted mb-4 max-w-md mx-auto">
+                Al iniciarlo se genera el código de 4 dígitos del día y se habilita el QR
+                para proyectar. Los alumnos escanean, buscan su nombre y quedan registrados.
+              </p>
+              <button
+                onClick={() => toggleSession("open")}
+                disabled={busy}
+                className="rounded-xl bg-accent hover:bg-accent-hover text-white text-lg font-semibold px-6 py-3"
+              >
+                {busy ? "Iniciando…" : "Iniciar pase de lista"}
+              </button>
+            </>
+          )}
+        </section>
+      )}
 
+      {tab === "hoy" && (
+        <>
           <section className="flex items-center gap-3 mb-4">
             <h2 className="font-bold text-lg">Lista de hoy</h2>
             <span className="text-muted">
@@ -563,12 +581,19 @@ export default function AdminPage() {
           <p className="text-3xl sm:text-5xl font-bold text-black text-center">
             Escanea para pasar lista
           </p>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={qrDataUrl}
-            alt="Código QR del pase de lista"
-            className="w-[min(70vh,90vw)] max-w-full"
-          />
+          <div className="relative">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={qrDataUrl}
+              alt="Código QR del pase de lista"
+              className="w-[min(70vh,90vw)] max-w-full"
+            />
+            {session?.open && session.code && (
+              <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-2xl border-4 border-black px-4 py-2 font-mono font-bold text-black text-[min(8vh,10vw)] leading-none tracking-widest">
+                {session.code}
+              </span>
+            )}
+          </div>
           <p className="text-2xl sm:text-4xl font-mono font-bold text-black text-center">
             {typeof window !== "undefined" ? window.location.host : ""}
           </p>

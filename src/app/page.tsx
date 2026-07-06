@@ -26,6 +26,12 @@ export default function StudentPage() {
   const [confirmed, setConfirmed] = useState<{ name: string; already: boolean } | null>(null);
   // Permite registrar a otra persona desde el mismo dispositivo
   const [showList, setShowList] = useState(false);
+  // Código que viene en el QR (/?c=1234): el alumno ya no lo teclea
+  const [urlCode, setUrlCode] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    const c = new URLSearchParams(window.location.search).get("c");
+    return c && /^\d{4}$/.test(c) ? c : null;
+  });
 
   const load = useCallback(() => {
     fetch("/api/students")
@@ -71,10 +77,17 @@ export default function StudentPage() {
       const res = await fetch("/api/checkin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ studentId: selected.id, code }),
+        body: JSON.stringify({ studentId: selected.id, code: urlCode ?? code }),
       });
       const data = await res.json();
       if (!res.ok) {
+        // El código del QR ya no es válido (p. ej. QR de otro día):
+        // se descarta y se pide teclearlo como siempre
+        if (res.status === 403 && urlCode) {
+          setUrlCode(null);
+          setModalError("El código cambió. Escribe el que está en la pantalla del salón.");
+          return;
+        }
         setModalError(data.error || "Ocurrió un error, intenta de nuevo");
         return;
       }
@@ -174,27 +187,35 @@ export default function StudentPage() {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 p-4">
           <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6">
             <h2 className="text-2xl font-bold text-center">{selected.name}</h2>
-            <p className="text-center text-muted text-lg mt-2 mb-4">
-              Escribe el código de 4 dígitos que está en la pantalla del salón
-            </p>
-            <input
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              maxLength={4}
-              value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-              placeholder="0000"
-              autoFocus
-              className="w-full text-center text-4xl tracking-[0.5em] font-mono rounded-xl border border-border bg-background px-4 py-4 outline-none focus:border-accent"
-            />
+            {urlCode ? (
+              <p className="text-center text-muted text-lg mt-2 mb-1">
+                ¿Eres tú? Confirma para registrar tu asistencia.
+              </p>
+            ) : (
+              <>
+                <p className="text-center text-muted text-lg mt-2 mb-4">
+                  Escribe el código de 4 dígitos que está en la pantalla del salón
+                </p>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={4}
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+                  placeholder="0000"
+                  autoFocus
+                  className="w-full text-center text-4xl tracking-[0.5em] font-mono rounded-xl border border-border bg-background px-4 py-4 outline-none focus:border-accent"
+                />
+              </>
+            )}
             {modalError && (
               <p className="text-danger text-center text-lg mt-3">{modalError}</p>
             )}
             <div className="mt-5 flex flex-col gap-3">
               <button
                 onClick={submitCheckin}
-                disabled={code.length !== 4 || submitting}
+                disabled={(!urlCode && code.length !== 4) || submitting}
                 className="w-full rounded-xl bg-accent hover:bg-accent-hover disabled:opacity-40 text-white text-xl font-semibold py-4 transition-colors"
               >
                 {submitting ? "Registrando…" : "Marcar mi asistencia"}
