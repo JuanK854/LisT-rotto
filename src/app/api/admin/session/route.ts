@@ -28,14 +28,16 @@ export async function GET(req: NextRequest) {
 }
 
 /**
- * POST /api/admin/session  { action: "open" | "close" }
- * "open" crea la sesión de hoy con un código nuevo (o la reabre).
+ * POST /api/admin/session
+ *  { action: "open" | "close" }                   → sesión de hoy
+ *  { action: "create", sessionId: "YYYY-MM-DD" }  → crea una fecha pasada
+ *                                                    (cerrada, para rellenarla a mano)
  */
 export async function POST(req: NextRequest) {
   const admin = await verifyAdmin(req);
   if (!admin) return unauthorized();
 
-  let body: { action?: string };
+  let body: { action?: string; sessionId?: string };
   try {
     body = await req.json();
   } catch {
@@ -43,6 +45,30 @@ export async function POST(req: NextRequest) {
   }
 
   const sessionId = todaySessionId();
+
+  if (body.action === "create") {
+    const date = body.sessionId ?? "";
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || isNaN(Date.parse(date))) {
+      return NextResponse.json({ error: "Fecha inválida" }, { status: 400 });
+    }
+    if (date > sessionId) {
+      return NextResponse.json(
+        { error: "No se pueden crear fechas futuras" },
+        { status: 400 }
+      );
+    }
+    // Cerrada y con código placeholder: nadie puede registrarse solo en fechas pasadas
+    const { error } = await db()
+      .from("sessions")
+      .upsert(
+        { id: date, code: "0000", open: false, opened_by: admin.email },
+        { ignoreDuplicates: true }
+      );
+    if (error) {
+      return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
+    }
+    return NextResponse.json({ sessionId: date, open: false });
+  }
 
   if (body.action === "open") {
     const { data: existing } = await db()

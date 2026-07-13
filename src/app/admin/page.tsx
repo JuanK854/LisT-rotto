@@ -52,6 +52,8 @@ export default function AdminPage() {
   const [error, setError] = useState("");
   const [newName, setNewName] = useState("");
   const [adding, setAdding] = useState(false);
+  const [newDate, setNewDate] = useState("");
+  const [creatingDate, setCreatingDate] = useState(false);
   const [addMessage, setAddMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
@@ -176,6 +178,26 @@ export default function AdminPage() {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
       await refresh();
+    }
+  }
+
+  async function createPastSession(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newDate || creatingDate) return;
+    setCreatingDate(true);
+    try {
+      await api("/api/admin/session", {
+        method: "POST",
+        body: JSON.stringify({ action: "create", sessionId: newDate }),
+      });
+      await refresh();
+      // Abre directo el detalle de la fecha para rellenar la asistencia
+      setHistoryDate(newDate);
+      setNewDate("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    } finally {
+      setCreatingDate(false);
     }
   }
 
@@ -496,6 +518,32 @@ export default function AdminPage() {
               Descargar Excel
             </button>
           </div>
+
+          <form
+            onSubmit={createPastSession}
+            className="flex flex-col sm:flex-row gap-3 rounded-2xl border border-border bg-card p-4 mb-4"
+          >
+            <div className="flex-1">
+              <p className="text-sm text-muted mb-2">
+                ¿Faltó registrar un día? Elige la fecha y rellena la asistencia a mano.
+              </p>
+              <input
+                type="date"
+                value={newDate}
+                onChange={(e) => setNewDate(e.target.value)}
+                max={session?.sessionId}
+                required
+                className="w-full sm:w-auto rounded-xl border border-border bg-background px-4 py-3 outline-none focus:border-accent [color-scheme:light_dark]"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={!newDate || creatingDate}
+              className="self-end rounded-xl bg-accent hover:bg-accent-hover disabled:opacity-40 text-white font-semibold px-6 py-3 transition-colors"
+            >
+              {creatingDate ? "Creando…" : "Añadir fecha"}
+            </button>
+          </form>
           <ul className="space-y-2">
             {sessions.map((s) => (
               <li key={s.id} className="flex items-stretch gap-2">
