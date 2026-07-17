@@ -7,11 +7,13 @@ create table if not exists public.students (
   name text not null,
   name_normalized text not null,
   active boolean not null default true,
-  phone text -- E.164, ej. +526141234567; solo para contacto en el export
+  phone text, -- E.164, ej. +526141234567; solo para contacto en el export
+  email text -- solo para la base; no se muestra en la app ni en el export
 );
 
--- Si la tabla ya existía sin la columna:
+-- Si la tabla ya existía sin las columnas:
 alter table public.students add column if not exists phone text;
+alter table public.students add column if not exists email text;
 
 create table if not exists public.sessions (
   id text primary key, -- YYYY-MM-DD
