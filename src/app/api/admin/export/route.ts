@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   if (!admin) return unauthorized();
 
   const [studentsRes, sessionsRes, attendanceRes] = await Promise.all([
-    db().from("students").select("id, name").eq("active", true).order("name"),
+    db().from("students").select("id, name, phone").eq("active", true).order("name"),
     db().from("sessions").select("id").order("id"),
     db().from("attendance").select("session_id, student_id"),
   ]);
@@ -31,13 +31,13 @@ export async function GET(req: NextRequest) {
     attendanceRes.data.map((a) => `${a.session_id}_${a.student_id}`)
   );
 
-  const header = ["Nombre", ...sessions, "Total"].join(",");
+  const header = ["Nombre", ...sessions, "Total", "Teléfono"].join(",");
   const rows = studentsRes.data.map((s) => {
     const marks = sessions.map((sess) =>
       present.has(`${sess}_${s.id}`) ? "1" : "0"
     );
     const total = marks.filter((m) => m === "1").length;
-    return [csvEscape(s.name), ...marks, String(total)].join(",");
+    return [csvEscape(s.name), ...marks, String(total), csvEscape(s.phone ?? "")].join(",");
   });
 
   // BOM para que Excel abra bien los acentos
