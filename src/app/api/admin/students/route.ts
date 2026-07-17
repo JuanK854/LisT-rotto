@@ -12,14 +12,14 @@ function normalize(text: string): string {
 }
 
 /**
- * POST /api/admin/students  { name }
+ * POST /api/admin/students  { name, phone? }
  * Da de alta un integrante nuevo (o reactiva uno existente con el mismo nombre).
  */
 export async function POST(req: NextRequest) {
   const admin = await verifyAdmin(req);
   if (!admin) return unauthorized();
 
-  let body: { name?: string };
+  let body: { name?: string; phone?: string };
   try {
     body = await req.json();
   } catch {
@@ -32,6 +32,19 @@ export async function POST(req: NextRequest) {
       { error: "Escribe el nombre completo (mínimo 3 letras)" },
       { status: 400 }
     );
+  }
+
+  // Teléfono opcional. Se guarda en E.164 como el resto: 10 dígitos locales → +52
+  let phone: string | null = null;
+  if (typeof body.phone === "string" && body.phone.trim()) {
+    const digits = body.phone.replace(/[^\d+]/g, "");
+    phone = /^\d{10}$/.test(digits) ? `+52${digits}` : digits;
+    if (!/^\+\d{11,15}$/.test(phone)) {
+      return NextResponse.json(
+        { error: "Teléfono inválido: usa 10 dígitos o formato +52…" },
+        { status: 400 }
+      );
+    }
   }
 
   // Mismo id determinista que el importador: el nombre repetido no se duplica
@@ -53,11 +66,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Sin teléfono no se manda la columna: reactivar a alguien no borra el que ya tenía
   const { error } = await db().from("students").upsert({
     id,
     name,
     name_normalized: normalize(name),
     active: true,
+    ...(phone ? { phone } : {}),
   });
   if (error) {
     return NextResponse.json({ error: "Error del servidor" }, { status: 500 });

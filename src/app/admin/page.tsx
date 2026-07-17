@@ -51,6 +51,7 @@ export default function AdminPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [newName, setNewName] = useState("");
+  const [newPhone, setNewPhone] = useState("");
   const [adding, setAdding] = useState(false);
   const [newDate, setNewDate] = useState("");
   const [creatingDate, setCreatingDate] = useState(false);
@@ -226,11 +227,12 @@ export default function AdminPage() {
     try {
       const res = await api("/api/admin/students", {
         method: "POST",
-        body: JSON.stringify({ name: newName }),
+        body: JSON.stringify({ name: newName, phone: newPhone }),
       });
       const data = await res.json();
       setAddMessage({ ok: true, text: `${data.name} ya aparece en la lista` });
       setNewName("");
+      setNewPhone("");
       await refresh();
     } catch (e) {
       setAddMessage({ ok: false, text: e instanceof Error ? e.message : "Error" });
@@ -438,6 +440,44 @@ export default function AdminPage() {
 
       {tab === "hoy" && (
         <>
+          <section className="mb-6 rounded-2xl border border-border bg-card p-5">
+            <h2 className="font-bold text-lg mb-1">Añadir integrante</h2>
+            <p className="text-muted text-sm mb-4">
+              Se agrega a la base de datos y aparece de inmediato en la lista para pasar lista.
+              El teléfono es opcional y sale en el Excel junto al total de asistencias.
+            </p>
+            <form onSubmit={addStudent} className="flex flex-col sm:flex-row gap-3">
+              <input
+                type="text"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="Nombre completo (nombre y apellidos)"
+                required
+                minLength={3}
+                className="flex-1 rounded-xl border border-border bg-background px-4 py-3 outline-none focus:border-accent placeholder:text-muted"
+              />
+              <input
+                type="tel"
+                value={newPhone}
+                onChange={(e) => setNewPhone(e.target.value)}
+                placeholder="Teléfono (opcional)"
+                className="sm:w-52 rounded-xl border border-border bg-background px-4 py-3 outline-none focus:border-accent placeholder:text-muted"
+              />
+              <button
+                type="submit"
+                disabled={adding || newName.trim().length < 3}
+                className="rounded-xl bg-accent hover:bg-accent-hover disabled:opacity-40 text-white font-semibold px-6 py-3 transition-colors"
+              >
+                {adding ? "Añadiendo…" : "Añadir"}
+              </button>
+            </form>
+            {addMessage && (
+              <p className={`mt-3 ${addMessage.ok ? "text-success" : "text-danger"}`}>
+                {addMessage.ok ? "✓ " : ""}{addMessage.text}
+              </p>
+            )}
+          </section>
+
           <section className="flex items-center gap-3 mb-4">
             <h2 className="font-bold text-lg">Lista de hoy</h2>
             <span className="text-muted">
@@ -473,35 +513,6 @@ export default function AdminPage() {
             )}
           </ul>
 
-          <section className="mt-8 rounded-2xl border border-border bg-card p-5">
-            <h2 className="font-bold text-lg mb-1">Añadir integrante</h2>
-            <p className="text-muted text-sm mb-4">
-              Se agrega a la base de datos y aparece de inmediato en la lista para pasar lista.
-            </p>
-            <form onSubmit={addStudent} className="flex flex-col sm:flex-row gap-3">
-              <input
-                type="text"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                placeholder="Nombre completo (nombre y apellidos)"
-                required
-                minLength={3}
-                className="flex-1 rounded-xl border border-border bg-background px-4 py-3 outline-none focus:border-accent placeholder:text-muted"
-              />
-              <button
-                type="submit"
-                disabled={adding || newName.trim().length < 3}
-                className="rounded-xl bg-accent hover:bg-accent-hover disabled:opacity-40 text-white font-semibold px-6 py-3 transition-colors"
-              >
-                {adding ? "Añadiendo…" : "Añadir"}
-              </button>
-            </form>
-            {addMessage && (
-              <p className={`mt-3 ${addMessage.ok ? "text-success" : "text-danger"}`}>
-                {addMessage.ok ? "✓ " : ""}{addMessage.text}
-              </p>
-            )}
-          </section>
         </>
       )}
 
