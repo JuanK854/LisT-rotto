@@ -8,6 +8,14 @@ function csvEscape(value: string): string {
   return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
 }
 
+// El teléfono se guarda en E.164 (+52…). Sin esto, Excel toma el "+" como
+// una fórmula y lo convierte a notación científica (5.26145E+11), perdiendo
+// dígitos. El patrón ="…" obliga a Excel/Sheets a mostrarlo tal cual, como texto.
+function phoneCell(phone: string | null | undefined): string {
+  if (!phone) return "";
+  return `"=""${phone.replace(/"/g, '""')}"""`;
+}
+
 /**
  * GET /api/admin/export
  * CSV del historial completo: una fila por alumno, una columna por sesión.
@@ -37,7 +45,7 @@ export async function GET(req: NextRequest) {
       present.has(`${sess}_${s.id}`) ? "1" : "0"
     );
     const total = marks.filter((m) => m === "1").length;
-    return [csvEscape(s.name), ...marks, String(total), csvEscape(s.phone ?? "")].join(",");
+    return [csvEscape(s.name), ...marks, String(total), phoneCell(s.phone)].join(",");
   });
 
   // BOM para que Excel abra bien los acentos
