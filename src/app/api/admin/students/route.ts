@@ -34,14 +34,15 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Teléfono opcional. Se guarda en E.164 como el resto: 10 dígitos locales → +52
+  // Teléfono opcional. 10 dígitos sin lada → se asume México (+52);
+  // con "+" acepta la lada de cualquier país (E.164: hasta 15 dígitos).
   let phone: string | null = null;
   if (typeof body.phone === "string" && body.phone.trim()) {
     const digits = body.phone.replace(/[^\d+]/g, "");
     phone = /^\d{10}$/.test(digits) ? `+52${digits}` : digits;
-    if (!/^\+\d{11,15}$/.test(phone)) {
+    if (!/^\+\d{8,15}$/.test(phone)) {
       return NextResponse.json(
-        { error: "Teléfono inválido: usa 10 dígitos o formato +52…" },
+        { error: "Teléfono inválido: usa 10 dígitos (México) o formato internacional +…" },
         { status: 400 }
       );
     }
