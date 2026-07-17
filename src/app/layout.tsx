@@ -30,18 +30,10 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col font-sans">
         {children}
         <footer className="mt-auto border-t border-border py-5 text-center text-sm text-muted">
-          <a
-            href="https://remotto.ai"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-foreground transition-colors"
-          >
+          <a href="/admin" className="hover:text-foreground transition-colors">
             Remotto
           </a>{" "}
-          ·{" "}
-          <a href="/admin" className="hover:text-foreground transition-colors">
-            Taller Vibe Coding
-          </a>
+          · Taller Vibe Coding
         </footer>
       </body>
     </html>

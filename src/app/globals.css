@@ -1,141 +1,50 @@
 @import "tailwindcss";
 
-/*
-  Sistema de diseño inspirado en remotto.ai:
-  índigo profundo, marca violeta en degradado, tarjetas glassy,
-  destellos violeta y una rejilla tenue de fondo. Dark-only, igual que remotto.ai.
-*/
+/* Tokens tomados del design system de remotto.ai */
 :root {
-  --background: #09091a;
-  --background-2: #0d0d24;
-  --foreground: #f3f2fb;
-  --card: rgba(255, 255, 255, 0.028);
-  --card-solid: #14132b;
-  --border: rgba(180, 170, 255, 0.12);
-  --border-strong: rgba(180, 170, 255, 0.24);
-  --muted: #9a99bd;
+  --background: #f6f6fb;
+  --foreground: #0c0c16;
+  --card: #fbfbff;
+  --border: #e0e0eb;
+  --muted: #565666;
+  --accent: #5b2ddb;
+  --accent-hover: #6d43e4;
+  --accent-secondary: #bf51c7;
+  --success: #00b568;
+  --danger: #e40014;
+}
 
-  /* Marca violeta (degradado tomado de los botones de remotto.ai) */
-  --accent: #7b63e6;
-  --accent-hi: #6b54cc;
-  --accent-lo: #40317e;
-  --accent-glow: #c9c0ff;
-
-  --success: #34d399;
-  --danger: #f87171;
-
-  color-scheme: dark;
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #06070d;
+    --foreground: #eeeef3;
+    --card: #10111b;
+    --border: #262835;
+    --muted: #8d8e9b;
+    --accent: #8f81ff;
+    --accent-hover: #a396ff;
+    --accent-secondary: #da6ae1;
+    --success: #00b568;
+    --danger: #f94144;
+  }
 }
 
 @theme inline {
   --color-background: var(--background);
-  --color-background-2: var(--background-2);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
-  --color-card-solid: var(--card-solid);
   --color-border: var(--border);
-  --color-border-strong: var(--border-strong);
   --color-muted: var(--muted);
   --color-accent: var(--accent);
-  --color-accent-hi: var(--accent-hi);
-  --color-accent-lo: var(--accent-lo);
-  --color-accent-glow: var(--accent-glow);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-secondary: var(--accent-secondary);
   --color-success: var(--success);
   --color-danger: var(--danger);
   --font-sans: var(--font-inter);
   --font-mono: var(--font-geist-mono);
 }
 
-html {
-  background: var(--background);
-}
-
 body {
-  position: relative;
-  color: var(--foreground);
   background: var(--background);
-  isolation: isolate;
-}
-
-/* Destellos violeta + rejilla tenue, fijos detrás de todo el contenido */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background:
-    radial-gradient(60rem 40rem at 15% -10%, rgba(107, 84, 204, 0.28), transparent 60%),
-    radial-gradient(50rem 40rem at 100% 0%, rgba(201, 192, 255, 0.10), transparent 55%),
-    radial-gradient(70rem 50rem at 50% 120%, rgba(64, 49, 126, 0.35), transparent 60%);
-}
-
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  opacity: 0.5;
-  background-image:
-    linear-gradient(to right, var(--border) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--border) 1px, transparent 1px);
-  background-size: 3.5rem 3.5rem;
-  mask-image: radial-gradient(80% 60% at 50% 0%, #000 0%, transparent 75%);
-}
-
-@layer components {
-  /* Superficie glassy: el patrón de tarjeta de remotto.ai */
-  .glass {
-    background: var(--card);
-    border: 1px solid var(--border);
-    backdrop-filter: blur(16px) saturate(140%);
-    -webkit-backdrop-filter: blur(16px) saturate(140%);
-  }
-
-  /* Botón/pill de marca con degradado violeta */
-  .btn-brand {
-    background-image: linear-gradient(180deg, var(--accent-hi), var(--accent-lo));
-    color: #fff;
-    box-shadow:
-      0 1px 0 0 rgba(255, 255, 255, 0.14) inset,
-      0 10px 30px -10px rgba(107, 84, 204, 0.7);
-    transition: filter 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
-  }
-  .btn-brand:hover:not(:disabled) {
-    filter: brightness(1.12);
-    box-shadow:
-      0 1px 0 0 rgba(255, 255, 255, 0.2) inset,
-      0 14px 40px -10px rgba(107, 84, 204, 0.85);
-  }
-  .btn-brand:active:not(:disabled) {
-    transform: translateY(1px);
-  }
-  .btn-brand:disabled {
-    opacity: 0.4;
-  }
-
-  /* Texto con degradado de marca (eyebrows, cifras destacadas) */
-  .text-brand-gradient {
-    background-image: linear-gradient(100deg, var(--accent-glow), var(--accent));
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-  }
-}
-
-/* Foco visible accesible en toda la app */
-:where(a, button, input, [tabindex]):focus-visible {
-  outline: 2px solid var(--accent-glow);
-  outline-offset: 2px;
-  border-radius: 0.5rem;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    transition-duration: 0.01ms !important;
-    animation-duration: 0.01ms !important;
-  }
+  color: var(--foreground);
 }
